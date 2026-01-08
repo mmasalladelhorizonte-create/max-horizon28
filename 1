@@ -1,0 +1,183 @@
+// ===============================================
+// MAX HORIZON28 — Optical–Atmospheric Horizon Model (JS version)
+// Author: mmasalladelhorizonte-create
+// Original implementation by: [TU NOMBRE O SEUDÓNIMO]
+// Year: 2026
+// License: All rights reserved
+// ===============================================
+Import math
+
+# ==================================================
+# CONFIGURACIÓN VISUAL
+# ==================================================
+GREEN = “\033[92m”
+RESET = “\033[0m”
+
+Print(“\n=== MAX HORIZON28 ===\n”)
+
+# ==================================================
+# DATOS DE ENTRADA
+# ==================================================
+Temp_c = 29
+Pressure = 1013.25# hPa
+Humidity = 70 # %
+Observer_height = 4.00# m
+Distance = 17300# m
+Object_height = 25 # m
+
+P_atm_manual = 0.89 # None -> automático
+
+# ==================================================
+# FUNCIONES ATMOSFÉRICAS
+# ==================================================
+Def vapor_pressure(Tc, HR):
+Es = 6.112 * math.exp((17.67 * Tc) / (Tc + 243.5))
+Return (HR / 100) * es
+
+Def refractivity(P, T, e):
+Return ((77.6 * P / T) + (3.73e5 * e / (T ** 2))) * 1e-6
+
+# ==================================================
+# FUNCIONES GEOMÉTRICAS
+# ==================================================
+Def elevation_angle(h, d):
+If h <= 0 or d <= 0:
+Return 0.0
+Return round(math.degrees(math.atan(h / d)), 2)
+
+# ==================================================
+# PARÁMETRO ATMOSFÉRICO
+# ==================================================
+Def atmospheric_parameter(distance_m, manual=None):
+Km = distance_m / 1000
+Record = round(math.sqrt(km), 2)
+
+Used = record if manual is None else max(0.0, round(manual, 2))
+Return record, used
+
+# ==================================================
+# RANGOS ATMOSFÉRICOS (SIN VALORES NEGATIVOS)
+# ==================================================
+Def atmospheric_ranges(record, used, total=15):
+Half = total // 2
+Span = max(abs(used – record), 1.0)
+Step = span / half
+Ranges = []
+
+For i in range(half, 0, -1):
+Val = max(0.0, round(record + step * i, 2))
+Ranges.append(val)
+
+Ranges.append(round(record, 2))
+
+For i in range(1, half + 1):
+Val = max(0.0, round(record – step * i, 2))
+Ranges.append(val)
+
+Ranges = sorted(set(ranges), reverse=True)
+
+If used not in ranges:
+Ranges.append(used)
+
+Ranges = sorted(set(ranges), reverse=True)
+
+Return ranges
+
+# ==================================================
+# CÁLCULOS ATMOSFÉRICOS
+# ==================================================
+T_k = temp_c + 273.15
+E = vapor_pressure(temp_c, humidity)
+R_local = refractivity(pressure, T_k, e)
+
+P_record, P_used = atmospheric_parameter(distance, P_atm_manual)
+R_acum = R_local * P_used
+
+# ==================================================
+# OCULTAMIENTO ÓPTICO (ACOTADO)
+# ==================================================
+Hidden_height_raw = distance * R_acum
+Hidden_height = min(hidden_height_raw, object_height)
+Visible_height = max(object_height – hidden_height, 0)
+
+# ==================================================
+# CALIBRACIÓN INTERNA DEL COEFICIENTE
+# ==================================================
+# C_H se calcula automáticamente según distancia y altura total
+C_H = distance / math.sqrt(object_height)
+
+# ==================================================
+# HORIZONTE DINÁMICO
+# ==================================================
+If hidden_height >= object_height:
+Dynamic_horizon = “Distancia no definido”
+Surplus = “Distancia no definido”
+Dynamic_horizon_val = None
+Else:
+Surplus_val = C_H * math.sqrt(hidden_height)
+Dynamic_horizon_val = distance – surplus_val
+If dynamic_horizon_val <= 0:
+Dynamic_horizon = “Distancia no definido”
+Surplus = “Distancia no definido”
+Dynamic_horizon_val = None
+Else:
+Dynamic_horizon = f”{dynamic_horizon_val:,.2f}”
+Surplus = f”{surplus_val:,.2f}”
+
+# ==================================================
+# ÁNGULOS
+# ==================================================
+Angle_distance = elevation_angle(visible_height, distance)
+Angle_horizon = elevation_angle(
+Visible_height,
+Dynamic_horizon_val if dynamic_horizon_val else 0
+
+)
+
+# ==================================================
+# PORCENTAJES (0–100 %)
+# ==================================================
+Visible_pct = (visible_height / object_height) * 100
+Hidden_pct = 100.0 – visible_pct
+
+# ==================================================
+# SALIDA FORMATEADA
+# ==================================================
+Def fmt(x):
+If isinstance(x, str):
+Return x
+Return f”{x:,.2f}”
+
+Print(“DATOS DE ENTRADA”)
+Print(f”{‘Altura del observador’:30} : {fmt(observer_height)} m”)
+Print(f”{‘Altura del objeto’:30} : {fmt(object_height)} m”)
+Print(f”{‘Distancia total’:30} : {fmt(distance)} m\n”)
+
+Print(“DATOS ATMOSFÉRICOS”)
+Print(f”{‘Temperatura (°C)’:30} : {temp_c}”)
+Print(f”{‘Presión atmosférica (hPa)’:30} : {pressure}”)
+Print(f”{‘Humedad relativa (%)’:30} : {humidity}”)
+Print(f”{‘R_local (n-1)’:30} : {R_local:.7f}”)
+
+Print(f”{‘Parámetro atmosférico’:30} : {GREEN}{fmt(P_used)}{RESET}”)
+Print(f”{‘R_acumulada’:30} : {R_acum:.5f}\n”)
+
+Print(“HORIZONTE Y OCULTAMIENTO”)
+Print(f”{‘Parte visible’:30} : {fmt(visible_height)} m”)
+Print(f”{‘Parte oculta’:30} : {fmt(hidden_height)} m”)
+Print(f”{‘Porcentaje visible’:30} : {visible_pct:.2f} %”)
+Print(f”{‘Porcentaje oculta’:30} : {hidden_pct:.2f} %”)
+Print(f”{‘Horizonte dinámico’:30} : {dynamic_horizon}”)
+Print(f”{‘Excedente de superficie’:30} : {surplus}”)
+Print(f”{‘Coeficiente_H’:30} : {fmt(C_H)}\n”)
+
+Print(“ÁNGULOS”)
+Print(f”{‘Ángulo por distancia’:30} : {angle_distance:.2f}°”)
+Print(f”{‘Ángulo al horizonte’:30} : {angle_horizon:.2f}°\n”)
+
+Print(“RANGOS ATMOSFÉRICOS (15)”)
+For r in atmospheric_ranges(P_record, P_used):
+Color = GREEN if r == P_used else RESET
+Print(f”{color}{fmt®}{RESET}”)
+
+Print(“\n[Program finished]”)
