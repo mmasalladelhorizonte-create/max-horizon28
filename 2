@@ -1,0 +1,86 @@
+// ===============================================
+// MAX HORIZON28 — Motor óptico-atmosférico
+// Fecha de registro: 2026-01-08
+// Versión: 1.0
+// Registrado por: [Nombre del responsable]
+// ===============================================
+// ---------- FUNCIONES ATMOSFÉRICAS ----------
+function vaporPressure(Tc, HR) {
+const es = 6.112 * Math.exp((17.67 * Tc) / (Tc + 243.5));
+return (HR / 100) * es;
+}
+function refractivity(P, T, e) {
+return ((77.6 * P / T) + (3.73e5 * e / (T ** 2))) * 1e-6;
+}
+// ---------- GEOMETRÍA ----------
+function elevationAngle(h, d) {
+if (h <= 0 || d <= 0) return 0;
+return Math.atan(h / d) * (180 / Math.PI);
+}
+// ---------- PARÁMETRO ATMOSFÉRICO ----------
+function atmosphericParameter(distance_m, manual = null) {
+const km = distance_m / 1000;
+const record = Math.sqrt(km);
+const used = manual === null ? record : Math.max(0, manual);
+return { record, used };
+}
+// ---------- CÁLCULO PRINCIPAL ----------
+function calculateMaxHorizon(input) {
+const {
+temp_c,
+pressure,
+humidity,
+observer_height,
+distance,
+object_height,
+P_atm_manual
+} = input;
+
+// --- Atmósfera ---
+const T_k = temp_c + 273.15;
+const e = vaporPressure(temp_c, humidity);
+const R_local = refractivity(pressure, T_k, e);
+const { record, used } = atmosphericParameter(distance, P_atm_manual);
+const R_acum = R_local * used;
+// --- Ocultamiento ---
+const hidden_raw = distance * R_acum;
+const hidden = Math.min(hidden_raw, object_height);
+const visible = Math.max(object_height - hidden, 0);
+// --- Coeficiente H ---
+const C_H = distance / Math.sqrt(object_height);
+// --- Horizonte dinámico ---
+let horizon = null;
+let surplus = null;
+if (hidden < object_height) {
+const surplus_val = C_H * Math.sqrt(hidden);
+const horizon_val = distance - surplus_val;
+if (horizon_val > 0) {
+horizon = horizon_val;
+surplus = surplus_val;
+}
+}
+// --- Ángulos ---
+const angle_distance = elevationAngle(visible, distance);
+const angle_horizon = horizon ? elevationAngle(visible, horizon) : 0;
+// --- Porcentajes ---
+const visible_pct = (visible / object_height) * 100;
+const hidden_pct = 100 - visible_pct;
+// --- Salida ---
+return {
+R_local,
+R_acum,
+visible,
+hidden,
+visible_pct,
+hidden_pct,
+
+horizon,
+surplus,
+C_H,
+angle_distance,
+angle_horizon,
+parameter_used: used,
+parameter_record: record
+};
+}
+verificalo para rejitarlo
